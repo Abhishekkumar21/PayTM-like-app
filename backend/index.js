@@ -1,20 +1,26 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const dotenv = require("dotenv");
-
+import express from "express";
+import dotenv from "dotenv";
+import connectDB from "./DB/index.js";
+import mainRouter from "./routes/index.js";
+import cors from "cors";
 //loading environment variable from .env file
-dotenv.config();
-
+dotenv.config({
+  path: "./.env",
+});
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-//MongoDB connection
-const dbURI = process.env.MONGODB_URI;
-mongoose
-  .connect(dbURI)
-  .then(() => console.log("Connected to MongoDB. Database created"))
-  .catch((err) => console.log("Failed to connect MongoDB", err));
+app.use(cors());
+app.use(express.json());
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+app.use("/api/v1", mainRouter);
+
+connectDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.log(`MongoDB connection error ${err}`);
+  });
