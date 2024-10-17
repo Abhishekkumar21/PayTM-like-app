@@ -1,8 +1,11 @@
 import express from "express";
 import z from "zod";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import User from "../models/user.model.js";
 import JWT_TOKEN from "../config.js";
-import authMiddleware from "../middlewares/auth.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
+import { saltRounds } from "../constants.js";
 
 const router = express.Router();
 
@@ -19,8 +22,9 @@ const signupBody = z.object({
 router.post("/signup", async (req, res) => {
   const { success } = signupBody.safeParse(req.body);
   if (!success) {
-    return res.status(411).json({
+    return res.status(400).json({
       message: "Invalid Email!",
+      errors: error.errors,
     });
   }
 
@@ -34,11 +38,13 @@ router.post("/signup", async (req, res) => {
     });
   }
 
+  const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+
   const user = await User.create({
     username: req.body.username,
     firstname: req.body.firstname,
     lastname: req.body.lastname,
-    password: req.body.password,
+    password: hashedPassword,
   });
 
   const userId = user._id;
@@ -74,10 +80,10 @@ router.get("/signin", async (req, res) => {
 
   const user = await User.findOne({
     username: req.body.username,
-    password: req.body.password,
+    //password: req.body.password,
   });
 
-  if (user) {
+  if (user && (await bcrypt.compare(req.body.password, user.password))) {
     const token = jwt.sign(
       {
         userId: user._id,
@@ -85,31 +91,22 @@ router.get("/signin", async (req, res) => {
       JWT_TOKEN
     );
 
-    res.json({
-      token: token,
-    });
+    res.json({ token });
 
     return;
   }
 
-  res.json({ message: "Error while login!" });
+  res.status(401).json({ message: "Error while login!" });
 });
 
-//3.Route to update the user information -
-
-//User should be allowed to 'optionally' send either or all of -
-//
-// lastName
-// Wha password
-// firstNametever they send, we need to update it in the database for the user.
-// Use the middleware we defined in the last section to authenticate the user
-
+//update profile informations - password, fistname, lastname
 const updateBody = z.object({
   password: z.string().optional(),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
 });
-router.put("/", async (req, res) => {
+
+router.put("/", authMiddleware, async (req, res) => {
   const { success } = updateBody.safeParse(req.body);
   if (!success) {
     return res.status(411).json({
@@ -117,6 +114,12 @@ router.put("/", async (req, res) => {
     });
   }
 
+  // If the password is being updated, hash it before storing it
+  if (req.body.password) {
+    req.body.password = await bcrypt.hash(req.body.password, saltRounds);
+  }
+
+  //update user in database
   await User.updateOne({ _id: req.userId }, req.body);
 
   res.json({
@@ -124,7 +127,7 @@ router.put("/", async (req, res) => {
   });
 });
 
-//4.Route to get users from backend, filterable by firstname/last - this is needed so users can search their friends and send them money
+//4.Route to get all users from backend, filterable by firstname/last - this is needed so users can search their friends and send them money
 
 router.get("/bulk", async (req, res) => {
   const filter = req.query.filter || "";
