@@ -3,7 +3,7 @@ import User from "./user.model.js";
 
 // creating schema for Accounts
 const accountSchema = new mongoose.Schema({
-  userID: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId, // reference to Model: User
     ref: User,
     required: true,
