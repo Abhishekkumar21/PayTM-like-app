@@ -24,18 +24,13 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxLength: 50,
     },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
     password: {
       type: String,
       required: true,
     },
   },
   {
-    timestamp: true,
+    timestamps: true,
   }
 );
 
