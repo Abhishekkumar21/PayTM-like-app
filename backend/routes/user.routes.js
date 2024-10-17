@@ -3,6 +3,7 @@ import z from "zod";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import User from "../models/user.model.js";
+import Account from "../models/account.model.js";
 import JWT_TOKEN from "../config.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import { saltRounds } from "../constants.js";
@@ -20,7 +21,7 @@ const signupBody = z.object({
 });
 
 router.post("/signup", async (req, res) => {
-  const { success } = signupBody.safeParse(req.body);
+  const { success, error } = signupBody.safeParse(req.body);
   if (!success) {
     return res.status(400).json({
       message: "Invalid Email!",
@@ -48,6 +49,13 @@ router.post("/signup", async (req, res) => {
   });
 
   const userId = user._id;
+  //--- creating new bank account
+  //---providing user a random balance on signup, doing this we don't need to integrate with real banks
+  await Account.create({
+    userId,
+    balance: 1 + Math.random() * 10000,
+  });
+  //---account creation done
 
   const token = jwt.sign(
     {
@@ -102,7 +110,7 @@ router.get("/signin", async (req, res) => {
 //update profile informations - password, fistname, lastname
 const updateBody = z.object({
   password: z.string().optional(),
-  firstName: z.string().optional(),
+  firstname: z.string().optional(),
   lastName: z.string().optional(),
 });
 
@@ -138,8 +146,8 @@ router.get("/bulk", async (req, res) => {
   return res.json({
     user: users.map((user) => ({
       username: user.username,
-      firstname: user.firstName,
-      lastname: user.lastName,
+      firstname: user.firstname,
+      lastname: user.lastname,
       _id: user._id,
     })),
   });
