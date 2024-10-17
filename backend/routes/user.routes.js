@@ -24,7 +24,7 @@ router.post("/signup", async (req, res) => {
   const { success, error } = signupBody.safeParse(req.body);
   if (!success) {
     return res.status(400).json({
-      message: "Invalid Email!",
+      message: "Invalid Input!",
       errors: error.errors,
     });
   }
